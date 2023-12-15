@@ -47,6 +47,12 @@ for i, observability in enumerate([False, True]):
             kwargs={'full_observable': observability, 'n_max': num_max_cars}
         )
 
+        register(
+            id='TrafficJunction{}_restricted-v'.format(num_max_cars) + str(i),
+            entry_point='ma_gym.envs.traffic_junction:TrafficJunction',
+            kwargs={'full_observable': observability, 'n_max': num_max_cars, 'restricted_obs': True}
+        )
+
     register(
         id='Lumberjacks-v' + str(i),
         entry_point='ma_gym.envs.lumberjacks:Lumberjacks',

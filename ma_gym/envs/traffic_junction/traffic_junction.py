@@ -55,7 +55,7 @@ class TrafficJunction(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(14, 14), step_cost=-0.01, n_max=4, collision_reward=-10, arrive_prob=0.5,
-                 full_observable: bool = False, max_steps: int = 100):
+            full_observable: bool = False, max_steps: int = 100, restricted_obs: bool = False):
         assert 1 <= n_max <= 10, "n_max should be range in [1,10]"
         assert 0 <= arrive_prob <= 1, "arrive probability should be in range [0,1]"
         assert len(grid_shape) == 2, 'only 2-d grids are acceptable'
@@ -72,6 +72,7 @@ class TrafficJunction(gym.Env):
         self._step_cost = step_cost
         self.curr_cars_count = 0
         self._n_routes = 3
+        self.restricted_obs = restricted_obs
 
         self._agent_view_mask = (3, 3)
 
@@ -124,11 +125,16 @@ class TrafficJunction(gym.Env):
 
         # agent id (n_agents, onehot), obs_mask (9), pos (2), route (3)
         mask_size = np.prod(self._agent_view_mask)
-        self._obs_high = np.ones((mask_size * (self.n_agents + self._n_routes + 2)))  # 2 is for location
-        self._obs_low = np.zeros((mask_size * (self.n_agents + self._n_routes + 2)))  # 2 is for location
-        if self.full_observable:
-            self._obs_high = np.tile(self._obs_high, self.n_agents)
-            self._obs_low = np.tile(self._obs_low, self.n_agents)
+
+        if self.restricted_obs:
+            self._obs_high = np.ones((2))  # 2 is for location
+            self._obs_low = np.zeros((2))  # 2 is for location
+        else:
+            self._obs_high = np.ones((mask_size * (self.n_agents + self._n_routes + 2)))  # 2 is for location
+            self._obs_low = np.zeros((mask_size * (self.n_agents + self._n_routes + 2)))  # 2 is for location
+            if self.full_observable:
+                self._obs_high = np.tile(self._obs_high, self.n_agents)
+                self._obs_low = np.tile(self._obs_low, self.n_agents)
         self.observation_space = MultiAgentObservationSpace([spaces.Box(self._obs_low, self._obs_high)
                                                              for _ in range(self.n_agents)])
 
@@ -242,13 +248,16 @@ class TrafficJunction(gym.Env):
         agent_obs = []
         for agent_i in range(self.n_agents):
             pos = self.agent_pos[agent_i]
-            mask_view = np.zeros((*self._agent_view_mask, len(agent_no_mask_obs[0])), dtype=np.float32)
-            for row in range(max(0, pos[0] - 1), min(pos[0] + 1 + 1, self._grid_shape[0])):
-                for col in range(max(0, pos[1] - 1), min(pos[1] + 1 + 1, self._grid_shape[1])):
-                    if PRE_IDS['agent'] in self._full_obs[row][col]:
-                        _id = int(self._full_obs[row][col].split(PRE_IDS['agent'])[1]) - 1
-                        mask_view[row - (pos[0] - 1), col - (pos[1] - 1), :] = agent_no_mask_obs[_id]
-            agent_obs.append(mask_view.flatten())
+            if self.restricted_obs:
+                agent_obs.append(pos)
+            else:
+                mask_view = np.zeros((*self._agent_view_mask, len(agent_no_mask_obs[0])), dtype=np.float32)
+                for row in range(max(0, pos[0] - 1), min(pos[0] + 1 + 1, self._grid_shape[0])):
+                    for col in range(max(0, pos[1] - 1), min(pos[1] + 1 + 1, self._grid_shape[1])):
+                        if PRE_IDS['agent'] in self._full_obs[row][col]:
+                            _id = int(self._full_obs[row][col].split(PRE_IDS['agent'])[1]) - 1
+                            mask_view[row - (pos[0] - 1), col - (pos[1] - 1), :] = agent_no_mask_obs[_id]
+                agent_obs.append(mask_view.flatten())
 
         if self.full_observable:
             _obs = np.array(agent_obs).flatten().tolist()
