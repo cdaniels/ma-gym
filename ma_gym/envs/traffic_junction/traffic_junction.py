@@ -149,7 +149,8 @@ class TrafficJunction(gym.Env):
         self._full_obs = self.__create_grid()
 
         shuffled_gates = list(self._route_vectors.keys())
-        random.shuffle(shuffled_gates)
+        if not self.restricted_obs:
+            random.shuffle(shuffled_gates)
         for agent_i in range(self.n_agents):
             if self.curr_cars_count >= len(self._entry_gates):
                 self.agent_pos[agent_i] = (0, 0)  # not yet on the road
