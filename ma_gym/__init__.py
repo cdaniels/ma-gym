@@ -40,7 +40,7 @@ for i, observability in enumerate([False, True]):
             kwargs={'n_agents': 4, 'full_observable': observability, 'step_cost': -0.1, 'clock': clock}
         )
 
-    for num_max_cars in [4, 10]:
+    for num_max_cars in [3, 4, 10]:
         register(
             id='TrafficJunction{}-v'.format(num_max_cars) + str(i),
             entry_point='ma_gym.envs.traffic_junction:TrafficJunction',
